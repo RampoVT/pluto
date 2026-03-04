@@ -4,6 +4,7 @@ import uuid
 import os
 import glob
 import sys
+import re
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -11,7 +12,7 @@ class BaseProvider:
     def __init__(self, name):
         self.name = name
     def get_user_agent(self):
-        # Using Chrome 133 to ensure HD resolution manifests are served
+        # Updated to Chrome 133 to ensure HD resolution manifests are served
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
     def get_timeout(self):
         return 30
@@ -26,17 +27,25 @@ class PlutoProvider(BaseProvider):
         self.stitcher_params = ""
         self.session_expires_at = 0
         
-        self.region = os.getenv('PLUTO_REGION', 'us_west')
-        self.username = os.getenv('PLUTO_USERNAME', '').strip() or None
-        self.password = os.getenv('PLUTO_PASSWORD', '').strip() or None
+        # Configuration from environment (e.g., 'us', 'gb', 'ca')
+        self.region = os.getenv('PLUTO_REGION', 'us').lower()
         
+        # IP Addresses extracted from official source to fix freezing/commercial issues
         self.x_forward = {
-            "local": "",
-            "uk": "178.238.11.6",
-            "ca": "192.206.151.131", 
-            "fr": "193.169.64.141",
-            "us_east": "108.82.206.181",
-            "us_west": "76.81.9.69",
+            "us": "185.236.200.172", # USA
+            "gb": "84.17.50.173",    # United Kingdom
+            "ca": "192.206.151.131", # Canada
+            "fr": "176.31.84.249",   # France
+            "de": "217.94.184.66",   # Germany
+            "es": "88.26.241.248",   # Spain
+            "it": "131.114.130.239", # Italy
+            "br": "177.192.255.38",  # Brazil
+            "mx": "200.68.128.83",   # Mexico
+            "ar": "168.226.232.228", # Argentina
+            "cl": "181.200.138.240", # Chile
+            "no": "78.26.38.103",    # Norway
+            "se": "185.6.8.2",       # Sweden
+            "dk": "192.36.27.7",     # Denmark
         }
         
         self.headers = {
@@ -48,10 +57,11 @@ class PlutoProvider(BaseProvider):
             'user-agent': self.get_user_agent(),
         }
         
-        if self.region in self.x_forward and self.x_forward[self.region]:
+        if self.region in self.x_forward:
             self.headers["X-Forwarded-For"] = self.x_forward[self.region]
 
     def _get_session_token(self) -> str:
+        """Retrieves session tokens needed for HD stream manifests"""
         if self.session_token and datetime.now().timestamp() < self.session_expires_at:
             return self.session_token
         try:
@@ -71,6 +81,7 @@ class PlutoProvider(BaseProvider):
         except Exception: return ""
 
     def get_channels(self) -> List[Dict[str, Any]]:
+        """Fetches channel data and constructs high-resolution stream URLs"""
         try:
             token = self._get_session_token()
             if not token: return []
@@ -95,6 +106,7 @@ class PlutoProvider(BaseProvider):
                         break
                 
                 sid = str(uuid.uuid4())
+                # Optimized parameters for resolution and smooth transitions
                 quality_suffix = (f"&quality=720p&deviceMake=chrome&deviceType=web&deviceModel=web"
                                   f"&deviceVersion=133.0.0&architecture=x86_64&buildVersion=1.0.0"
                                   f"&includeExtendedEvents=true&masterJWTPassthrough=true")
@@ -118,19 +130,29 @@ class PlutoProvider(BaseProvider):
     def generate_m3u(self, channels, epg_url):
         m3u = f'#EXTM3U x-tvg-url="{epg_url}"\n'
         for ch in channels:
-            # Individual files still use "Pluto TV" as a placeholder group
+            # Individual region files use 'Pluto TV' as default group
             m3u += f'#EXTINF:-1 tvg-id="{ch["id"]}" tvg-logo="{ch["logo"]}" group-title="Pluto TV",{ch["name"]}\n'
             m3u += f'{ch["stream_url"]}\n'
         return m3u
 
 def merge_master_playlist(epg_url):
-    """Combines regional M3Us and REPLACES Pluto categories with Country Names"""
+    """Combines regional files and Replaces Pluto categories with Country Names"""
+    # Custom display labels and sorting order
     sort_config = {
-        "us_east": {"priority": 1, "label": "United States East"},
-        "us_west": {"priority": 2, "label": "United States West"},
-        "ca":      {"priority": 3, "label": "Canada"},
-        "uk":      {"priority": 4, "label": "United Kingdom"},
-        "fr":      {"priority": 5, "label": "France"}
+        "us": {"priority": 1, "label": "United States"},
+        "ca": {"priority": 2, "label": "Canada"},
+        "gb": {"priority": 3, "label": "United Kingdom"},
+        "fr": {"priority": 4, "label": "France"},
+        "de": {"priority": 5, "label": "Germany"},
+        "es": {"priority": 6, "label": "Spain"},
+        "it": {"priority": 7, "label": "Italy"},
+        "mx": {"priority": 8, "label": "Mexico"},
+        "br": {"priority": 9, "label": "Brazil"},
+        "ar": {"priority": 10, "label": "Argentina"},
+        "cl": {"priority": 11, "label": "Chile"},
+        "no": {"priority": 12, "label": "Norway"},
+        "se": {"priority": 13, "label": "Sweden"},
+        "dk": {"priority": 14, "label": "Denmark"},
     }
 
     files = [f for f in glob.glob("pluto_*.m3u") if "master" not in f]
@@ -145,9 +167,7 @@ def merge_master_playlist(epg_url):
             with open(file, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("#EXTINF"):
-                        # Remove any existing group-title and replace it with the Country Name
-                        # This forces the player to group by country instead of movies/kids/etc
-                        import re
+                        # Forces grouping by Country Name ONLY - ignores original categories
                         line = re.sub(r'group-title="[^"]*"', f'group-title="{country_label}"', line)
                         master_content += line
                     elif not line.startswith("#EXTM3U") and line.strip():
