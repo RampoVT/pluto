@@ -28,7 +28,7 @@ Automatically updated M3U playlists for Pluto TV with forced HD resolution and c
 
 ## 📅 XML TV Guide (EPG)
 
-Use this link in your IPTV player settings to load channel logos and program data.
+EPG You shouldn't need it. Epgs load with playlist.
 
 | Type | Link |
 | :--- | :--- |
