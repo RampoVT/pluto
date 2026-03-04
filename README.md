@@ -8,18 +8,27 @@ Automatically updated M3U playlists for Pluto TV with forced HD resolution and c
 
 | Region / Type | Direct Raw M3U Link (Copy & Paste) |
 | :--- | :--- |
-| **🌍 Master (All Regions Sorted)** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_master.m3u` |
-| **🇺🇸 United States East** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_us_east.m3u` |
-| **🇺🇸 United States West** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_us_west.m3u` |
+| **🌍 ALL REGIONS (Sorted)** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_all.m3u` |
+| **🇺🇸 United States** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_us.m3u` |
 | **🇨🇦 Canada** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_ca.m3u` |
-| **🇬🇧 United Kingdom** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_uk.m3u` |
+| **🇬🇧 United Kingdom** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_gb.m3u` |
 | **🇫🇷 France** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_fr.m3u` |
+| **🇩🇪 Germany** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_de.m3u` |
+| **🇪🇸 Spain** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_es.m3u` |
+| **🇮🇹 Italy** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_it.m3u` |
+| **🇲🇽 Mexico** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_mx.m3u` |
+| **🇧🇷 Brazil** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_br.m3u` |
+| **🇦🇷 Argentina** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_ar.m3u` |
+| **🇨🇱 Chile** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_cl.m3u` |
+| **🇳🇴 Norway** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_no.m3u` |
+| **🇸🇪 Sweden** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_se.m3u` |
+| **🇩🇰 Denmark** | `https://raw.githubusercontent.com/BuddyChewChew/pluto/main/pluto_dk.m3u` |
 
 ---
 
 ## 📅 XML TV Guide (EPG)
 
-Fallback EPG link for your IPTV player. You shouldn't need it.
+Use this link in your IPTV player settings to load channel logos and program data.
 
 | Type | Link |
 | :--- | :--- |
@@ -29,16 +38,16 @@ Fallback EPG link for your IPTV player. You shouldn't need it.
 
 ## ✨ Key Features
 
-* **Forced HD Resolution:** The script mimics a Chrome 133 Desktop client on `x86_64` architecture to force Pluto to serve **720p/1080p** manifests instead of mobile-capped 480p.
-* **Country-Based Grouping:** The **Master** playlist removes standard categories (Kids, Movies, etc.) and groups channels strictly by their country/region for a cleaner experience.
-* **Audio Fix:** Configured to prioritize the primary stereo audio track, removing unwanted "Audio Description" or commentary tracks.
-* **Auto-Update:** Playlists are refreshed every 6 hours via GitHub Actions to ensure tokens and streams remain active.
+* **Forced HD Resolution:** Script mimics a Chrome 133 Desktop client on `x86_64` to force Pluto to serve **720p/1080p** manifests.
+* **Stable Commercials:** Uses optimized regional IP headers (`X-Forwarded-For`) to prevent freezing or pausing during ad transitions.
+* **Country-Based Grouping:** The **All Regions** playlist ignores standard categories and groups channels strictly by their country.
+* **Auto-Update:** Playlists are refreshed every 6 hours via GitHub Actions to ensure streams remain active.
 
 ---
 
 ## 🛠️ How to Use
 
 1.  **Copy** one of the M3U links from the table above.
-2.  **Paste** it into your favorite IPTV player (TiviMate, OTT Navigator, VLC, Apple TV, etc.).
-3.  Add the **EPG URL** to the EPG/TV Guide section of your app settings.
-4.  Enjoy high-quality Pluto TV!
+2.  **Paste** it into your IPTV player (TiviMate, OTT Navigator, VLC, etc.).
+3.  Add the **EPG URL** to the TV Guide section of your app.
+4.  **Note:** If you were using the old `pluto_master.m3u` or `pluto_uk.m3u`, please switch to `pluto_all.m3u` and `pluto_gb.m3u` respectively.
