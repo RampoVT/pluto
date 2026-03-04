@@ -12,13 +12,12 @@ class BaseProvider:
     def __init__(self, name):
         self.name = name
     def get_user_agent(self):
-        # Forced Chrome 133 to ensure HD resolution manifests are served
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
     def get_timeout(self):
         return 30
 
 class PlutoProvider(BaseProvider):
-    """Provider for Pluto TV with HD Resolution and Country-based Grouping"""
+    """Provider for Pluto TV with HD Resolution, Categories, and Country-based Grouping"""
 
     def __init__(self):
         super().__init__("pluto")
@@ -30,22 +29,13 @@ class PlutoProvider(BaseProvider):
         # Configuration from environment (e.g., 'us', 'gb', 'ca')
         self.region = os.getenv('PLUTO_REGION', 'us').lower()
         
-        # IP Addresses extracted from official source to fix freezing/commercial issues
+        # Optimized IPs from official source to fix freezing/commercial issues
         self.x_forward = {
-            "us": "185.236.200.172", # USA
-            "gb": "84.17.50.173",    # United Kingdom
-            "ca": "192.206.151.131", # Canada
-            "fr": "176.31.84.249",   # France
-            "de": "217.94.184.66",   # Germany
-            "es": "88.26.241.248",   # Spain
-            "it": "131.114.130.239", # Italy
-            "br": "177.192.255.38",  # Brazil
-            "mx": "200.68.128.83",   # Mexico
-            "ar": "168.226.232.228", # Argentina
-            "cl": "181.200.138.240", # Chile
-            "no": "78.26.38.103",    # Norway
-            "se": "185.6.8.2",       # Sweden
-            "dk": "192.36.27.7",     # Denmark
+            "us": "185.236.200.172", "gb": "84.17.50.173", "ca": "192.206.151.131", 
+            "fr": "176.31.84.249", "de": "217.94.184.66", "es": "88.26.241.248", 
+            "it": "131.114.130.239", "br": "177.192.255.38", "mx": "200.68.128.83", 
+            "ar": "168.226.232.228", "cl": "181.200.138.240", "no": "78.26.38.103", 
+            "se": "185.6.8.2", "dk": "192.36.27.7",
         }
         
         self.headers = {
@@ -79,6 +69,20 @@ class PlutoProvider(BaseProvider):
             return self.session_token
         except Exception: return ""
 
+    def _get_categories(self, headers: dict) -> dict:
+        """Fetches the actual category names (Movies, Kids, etc.) for the current region"""
+        try:
+            url = "https://service-channels.clusters.pluto.tv/v2/guide/categories"
+            response = requests.get(url, headers=headers, timeout=self.get_timeout())
+            data = response.json().get("data", [])
+            cat_map = {}
+            for category in data:
+                cat_name = category.get('name', 'General')
+                for channel_id in category.get('channelIDs', []):
+                    cat_map[channel_id] = cat_name
+            return cat_map
+        except Exception: return {}
+
     def get_channels(self) -> List[Dict[str, Any]]:
         try:
             token = self._get_session_token()
@@ -91,33 +95,33 @@ class PlutoProvider(BaseProvider):
             response = requests.get(url, params={'limit': '1000'}, headers=headers, timeout=self.get_timeout())
             channel_data = response.json().get("data", [])
             
+            # Get category mapping to restore groups in individual files
+            categories_list = self._get_categories(headers)
+            
             processed_channels = []
             for channel in channel_data:
                 channel_id, name = channel.get('id'), channel.get('name')
                 if not channel_id or not name: continue
                 
                 logo = next((img.get('url') for img in channel.get('images', []) if img.get('type') == 'colorLogoPNG'), "")
+                group = categories_list.get(channel_id, 'Pluto TV')
                 
                 sid = str(uuid.uuid4())
                 quality_suffix = (f"&quality=720p&deviceMake=chrome&deviceType=web&deviceModel=web"
                                   f"&deviceVersion=133.0.0&architecture=x86_64&buildVersion=1.0.0"
                                   f"&includeExtendedEvents=true&masterJWTPassthrough=true")
 
-                if self.stitcher_params:
-                    stream_url = (f"https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/v2/stitch/hls/channel/{channel_id}/master.m3u8"
-                                  f"?{self.stitcher_params}&jwt={token}{quality_suffix}")
-                else:
-                    stream_url = (f"https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/stitch/hls/channel/{channel_id}/master.m3u8"
-                                  f"?appName=web&appVersion=8.1.0&sid={sid}&serverSideAds=true{quality_suffix}")
+                stream_url = (f"https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/v2/stitch/hls/channel/{channel_id}/master.m3u8"
+                              f"?{self.stitcher_params}&jwt={token}{quality_suffix}")
                 
-                processed_channels.append({'id': str(channel_id), 'name': name, 'stream_url': stream_url, 'logo': logo})
+                processed_channels.append({'id': str(channel_id), 'name': name, 'stream_url': stream_url, 'logo': logo, 'group': group})
             return processed_channels
         except Exception: return []
 
     def generate_m3u(self, channels, epg_url):
         m3u = f'#EXTM3U x-tvg-url="{epg_url}"\n'
         for ch in channels:
-            m3u += f'#EXTINF:-1 tvg-id="{ch["id"]}" tvg-logo="{ch["logo"]}" group-title="Pluto TV",{ch["name"]}\n'
+            m3u += f'#EXTINF:-1 tvg-id="{ch["id"]}" tvg-logo="{ch["logo"]}" group-title="{ch["group"]}",{ch["name"]}\n'
             m3u += f'{ch["stream_url"]}\n'
         return m3u
 
@@ -140,7 +144,7 @@ def merge_master_playlist(epg_url):
         "dk": {"priority": 14, "label": "Denmark"},
     }
 
-    # Gather regional files, excluding both 'all.m3u' and the old 'master.m3u'
+    # Grab all regional files, excluding the combined 'all' and old 'master'
     files = [f for f in glob.glob("pluto_*.m3u") if "all.m3u" not in f and "master.m3u" not in f]
     sorted_files = sorted(files, key=lambda x: sort_config.get(x.replace("pluto_", "").replace(".m3u", ""), {}).get("priority", 99))
     
@@ -153,7 +157,7 @@ def merge_master_playlist(epg_url):
             with open(file, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("#EXTINF"):
-                        # Force grouping by Country Name ONLY
+                        # Force group to Country Name in the 'All' file only
                         line = re.sub(r'group-title="[^"]*"', f'group-title="{country_label}"', line)
                         master_content += line
                     elif not line.startswith("#EXTM3U") and line.strip():
